@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Real Estate HDR Merge</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="page">
+      <nav class="nav">
+        <a class="brand" href="#">
+          <span class="brand-mark">HDR</span>
+          <span>Real Estate HDR Merge</span>
+        </a>
+        <button id="folderBtn" class="ghost-btn" type="button">Klasor sec</button>
+      </nav>
+
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">One-click property photo merge</p>
+          <h1>Low, middle, high pozlamalari tek kaliteli emlak fotografina cevir.</h1>
+          <p class="lede">Ayar yok. Uygulama otomatik hizalar, pencere detayini korur, odayi dogal acar ve temiz JPG ciktilarini ZIP olarak verir.</p>
+        </div>
+
+        <section class="uploader-panel" aria-label="HDR yukleme alani">
+          <input id="fileInput" type="file" accept="image/*,.jpg,.jpeg,.png,.webp" multiple />
+          <input id="folderInput" type="file" accept="image/*,.jpg,.jpeg,.png,.webp" multiple webkitdirectory />
+
+          <label id="dropZone" class="drop-zone" for="fileInput">
+            <span class="drop-icon" aria-hidden="true">+</span>
+            <strong>Fotograflari buraya birak</strong>
+            <span>Dosya adinda low / mid / high varsa otomatik eslesir. Yoksa secim sirasi 3'lu set kabul edilir.</span>
+          </label>
+
+          <div class="stats-row" aria-label="Yukleme ozeti">
+            <div>
+              <span id="photoCount">0</span>
+              <small>fotograf</small>
+            </div>
+            <div>
+              <span id="setCount">0</span>
+              <small>HDR seti</small>
+            </div>
+            <div>
+              <span id="doneCount">0</span>
+              <small>hazir</small>
+            </div>
+          </div>
+
+          <div class="progress-wrap">
+            <div class="progress-line">
+              <span id="progressText">Hazir</span>
+              <span id="progressPercent">0%</span>
+            </div>
+            <progress id="progressBar" value="0" max="100"></progress>
+          </div>
+
+          <div class="action-row">
+            <button id="processBtn" class="solid-btn large" type="button" disabled>HDR Merge baslat</button>
+            <button id="downloadBtn" class="solid-btn large" type="button" disabled>ZIP indir</button>
+            <button id="clearBtn" class="ghost-btn large" type="button">Temizle</button>
+          </div>
+
+          <div id="status" class="status" role="status">Fotograflar bekleniyor.</div>
+        </section>
+      </section>
+
+      <section class="queue-section" aria-label="HDR set listesi">
+        <div class="section-head">
+          <h2>Setler</h2>
+          <span id="queueHint">Henuz dosya yok</span>
+        </div>
+        <div id="queueList" class="queue-list"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
