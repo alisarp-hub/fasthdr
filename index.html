@@ -3,24 +3,25 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Real Estate HDR Merge</title>
+    <title>Colora</title>
+    <link rel="icon" type="image/png" href="/colora-logo.png" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <main class="page">
       <nav class="nav">
         <a class="brand" href="#">
-          <span class="brand-mark">HDR</span>
-          <span>Real Estate HDR Merge</span>
+          <span class="brand-mark logo-mark"><img src="/colora-logo.png" alt="Colora logo" /></span>
+          <span>Colora</span>
         </a>
         <button id="folderBtn" class="ghost-btn" type="button">Klasor sec</button>
       </nav>
 
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">One-click property photo merge</p>
-          <h1>Low, middle, high pozlamalari tek kaliteli emlak fotografina cevir.</h1>
-          <p class="lede">Ayar yok. Uygulama otomatik hizalar, pencere detayini korur, odayi dogal acar ve temiz JPG ciktilarini ZIP olarak verir.</p>
+          <p class="eyebrow">Colora HDR birleştirme</p>
+          <h1>Pozlamaları tek temiz, doğal ve kaliteli fotoğrafa çevir.</h1>
+          <p class="lede">Colora otomatik hizalar, pencere detayını korur, odayı doğal açar ve temiz JPG çıktılarını ZIP olarak verir.</p>
         </div>
 
         <section class="uploader-panel" aria-label="HDR yukleme alani">
@@ -56,6 +57,22 @@
             <progress id="progressBar" value="0" max="100"></progress>
           </div>
 
+          <label class="toggle-control" for="lensCorrection">
+            <span>
+              <strong>Lens correction</strong>
+              <small>Genis aci kenar egilmesini duzelt</small>
+            </span>
+            <input id="lensCorrection" type="checkbox" />
+          </label>
+
+          <label class="toggle-control" for="shiftCorrection">
+            <span>
+              <strong>Kayma duzeltme</strong>
+              <small>Ust uste binme ve kenar kaymasini temizle</small>
+            </span>
+            <input id="shiftCorrection" type="checkbox" />
+          </label>
+
           <div class="action-row">
             <button id="processBtn" class="solid-btn large" type="button" disabled>HDR Merge baslat</button>
             <button id="downloadBtn" class="solid-btn large" type="button" disabled>ZIP indir</button>
@@ -75,6 +92,6 @@
       </section>
     </main>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=20260601-colora-ai1"></script>
   </body>
 </html>
