@@ -1,4 +1,4 @@
-# Real Estate HDR Merge
+# Colora
 
 One-click HDR merge web app for real-estate bracket photos.
 
