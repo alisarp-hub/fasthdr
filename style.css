@@ -80,6 +80,21 @@ button:disabled {
   letter-spacing: 0.04em;
 }
 
+.logo-mark {
+  width: 44px;
+  height: 44px;
+  padding: 3px;
+  border: 1px solid rgba(219, 228, 225, 0.92);
+  background: #fff;
+}
+
+.logo-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .nav-actions,
 .action-row {
   display: flex;
@@ -253,6 +268,67 @@ h1 {
 .progress-wrap {
   display: grid;
   gap: 8px;
+}
+
+.toggle-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 64px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.toggle-control span {
+  display: grid;
+  gap: 3px;
+}
+
+.toggle-control strong {
+  color: var(--ink);
+  font-size: 0.98rem;
+}
+
+.toggle-control small {
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.toggle-control input {
+  position: relative;
+  flex: 0 0 auto;
+  width: 54px;
+  height: 30px;
+  margin: 0;
+  appearance: none;
+  border-radius: 999px;
+  background: #dce7e4;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.toggle-control input::after {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(20, 32, 31, 0.22);
+  content: "";
+  transition: transform 0.18s ease;
+}
+
+.toggle-control input:checked {
+  background: var(--accent);
+}
+
+.toggle-control input:checked::after {
+  transform: translateX(24px);
 }
 
 .progress-line {
