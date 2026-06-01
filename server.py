@@ -4,6 +4,8 @@ import base64
 import io
 import os
 import re
+import shutil
+import subprocess
 import tempfile
 import zipfile
 from dataclasses import dataclass
@@ -19,6 +21,7 @@ from flask import Flask, Response, jsonify, request, send_from_directory
 APP_DIR = Path(__file__).resolve().parent
 MAX_SIDE = int(os.environ.get("FASTHDR_MAX_SIDE", "1600"))
 JPEG_QUALITY = int(os.environ.get("FASTHDR_JPEG_QUALITY", "93"))
+VIDEO_MAX_WIDTH = int(os.environ.get("COLORA_VIDEO_MAX_WIDTH", "1280"))
 cv2.setNumThreads(1)
 
 app = Flask(__name__, static_folder=None)
@@ -400,7 +403,7 @@ def finish_raw_photo(rgb: np.ndarray, name: str = "") -> np.ndarray:
 
 
 def convert_raw_photo(photo: PhotoFile) -> bytes:
-    if re.search(r"\.(jpe?g|png|webp)$", photo.name, flags=re.I):
+    if re.search(r"\.(jpe?g|png|tiff?|bmp|webp)$", photo.name, flags=re.I):
         image = decode_photo(photo)
         rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image = finish_raw_photo(rgb, photo.name)
@@ -457,6 +460,89 @@ def merge_real_estate(hdr_set: HdrSet, lens_correction: bool = False, shift_corr
     return encoded.tobytes()
 
 
+VIDEO_FILTERS = {
+    "natural": "eq=contrast=1.06:brightness=0.01:saturation=1.12:gamma=0.98,unsharp=5:5:0.32:3:3:0.10",
+    "cinematic": "eq=contrast=1.16:brightness=-0.012:saturation=1.06:gamma=1.02,colorbalance=rs=-0.035:gs=0.006:bs=0.055:rh=0.060:gh=0.018:bh=-0.050,vignette=PI/7",
+    "teal_orange": "eq=contrast=1.12:brightness=0.000:saturation=1.18:gamma=1.00,colorbalance=rs=-0.060:gs=0.020:bs=0.085:rh=0.095:gh=0.018:bh=-0.075",
+    "real_estate": "eq=contrast=1.08:brightness=0.025:saturation=1.10:gamma=0.94,colorbalance=rs=0.020:gs=0.012:bs=-0.020:rh=0.025:gh=0.012:bh=-0.025,unsharp=5:5:0.42:3:3:0.16",
+    "social_pop": "eq=contrast=1.18:brightness=0.018:saturation=1.28:gamma=0.97,unsharp=5:5:0.45:3:3:0.16",
+    "warm_film": "eq=contrast=1.10:brightness=0.006:saturation=1.10:gamma=1.01,colorbalance=rs=0.035:gs=0.005:bs=-0.045:rh=0.060:gh=0.015:bh=-0.060,vignette=PI/8",
+    "cool_luxury": "eq=contrast=1.12:brightness=-0.004:saturation=0.96:gamma=1.00,colorbalance=rs=-0.030:gs=0.005:bs=0.055:rm=-0.015:gm=0.000:bm=0.035,unsharp=5:5:0.28:3:3:0.10",
+    "wedding": "eq=contrast=1.03:brightness=0.018:saturation=1.06:gamma=0.96,colorbalance=rs=0.025:gs=0.010:bs=-0.025:rh=0.032:gh=0.012:bh=-0.028",
+    "product": "eq=contrast=1.14:brightness=0.010:saturation=1.14:gamma=0.98,unsharp=7:7:0.58:3:3:0.20",
+    "black_white": "hue=s=0,eq=contrast=1.18:brightness=0.004:gamma=0.98,unsharp=5:5:0.38:3:3:0.12",
+}
+
+VIDEO_EXTENSIONS = re.compile(r"\.(mp4|mov|m4v|mkv|webm|avi)$", re.I)
+
+
+def ffmpeg_path() -> str:
+    try:
+        import imageio_ffmpeg
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        found = shutil.which("ffmpeg")
+        if found:
+            return found
+    raise RuntimeError("ffmpeg bulunamadi")
+
+
+def video_filter_for(preset: str) -> str:
+    grade = VIDEO_FILTERS.get(preset, VIDEO_FILTERS["natural"])
+    scale = f"scale='min({VIDEO_MAX_WIDTH},iw)':-2"
+    return f"{scale},{grade}"
+
+
+def convert_video_grade(video: PhotoFile, preset: str) -> bytes:
+    suffix = Path(video.name).suffix.lower()
+    if not VIDEO_EXTENSIONS.search(video.name):
+        raise ValueError("Desteklenen video formati: MP4, MOV, M4V, MKV, WEBM veya AVI")
+
+    executable = ffmpeg_path()
+    video.storage.stream.seek(0)
+    with tempfile.TemporaryDirectory() as work_dir:
+        work = Path(work_dir)
+        src = work / f"input{suffix}"
+        out = work / "output.mp4"
+        src.write_bytes(video.storage.read())
+
+        cmd = [
+            executable,
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            str(src),
+            "-vf",
+            video_filter_for(preset),
+            "-map",
+            "0:v:0",
+            "-map",
+            "0:a?",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "21",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "160k",
+            "-movflags",
+            "+faststart",
+            str(out),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+        if result.returncode != 0:
+            raise ValueError(result.stderr.strip()[-500:] or "Video islenemedi")
+        return out.read_bytes()
+
+
 @app.get("/colora-logo.png")
 def colora_logo() -> Response:
     return Response(
@@ -491,7 +577,7 @@ def index() -> Response:
           </label>
 """
         html = html.replace('          <div class="action-row">', controls + '\n          <div class="action-row">')
-    html = html.replace('src="app.js"', 'src="app.js?v=20260601-colora-ai1"')
+    html = html.replace('src="app.js"', 'src="app.js?v=20260601-colora-video1"')
     return Response(html, mimetype="text/html", headers={"Cache-Control": "no-store, max-age=0"})
 
 
@@ -506,19 +592,19 @@ def assets(name: str) -> Response:
             script = base64.urlsafe_b64decode(payload).decode("utf-8")
         script = script.replace(
             'accept=".cr2,.cr3,.dng,.nef,.arw,.raf,.orf,.rw2,.pef,.srw,.raw"',
-            'accept=".cr2,.cr3,.dng,.nef,.arw,.raf,.orf,.rw2,.pef,.srw,.raw,.jpg,.jpeg,.png,.webp,image/*"',
+            'accept=".cr2,.cr3,.dng,.nef,.arw,.raf,.orf,.rw2,.pef,.srw,.raw,.jpg,.jpeg,.png,.tif,.tiff,.bmp,.webp,image/*"',
         )
         script = script.replace(
             'const rawOk = (f) => /\\.(cr2|cr3|dng|nef|arw|raf|orf|rw2|pef|srw|raw)$/i.test(f.name);',
-            'const rawOk = (f) => f.type.startsWith("image/") || /\\.(cr2|cr3|dng|nef|arw|raf|orf|rw2|pef|srw|raw|jpe?g|png|webp)$/i.test(f.name);',
+            'const rawOk = (f) => f.type.startsWith("image/") || /\\.(cr2|cr3|dng|nef|arw|raf|orf|rw2|pef|srw|raw|jpe?g|png|tiff?|bmp|webp)$/i.test(f.name);',
         )
         script = script.replace(
             "CR2, CR3, DNG, NEF, ARW ve benzeri RAW dosyalar\\u0131 \\u00e7oklu y\\u00fckle.",
-            "CR2, CR3, DNG, NEF, ARW yan\\u0131nda JPG, PNG ve WebP dosyalar\\u0131n\\u0131 da \\u00e7oklu y\\u00fckle.",
+            "RAW, JPG, JPEG, PNG, TIFF, BMP ve WebP dosyalar\\u0131n\\u0131 toplu y\\u00fckle.",
         )
         script = script.replace(
             "Batch upload CR2, CR3, DNG, NEF, ARW and similar RAW files.",
-            "Batch upload CR2, CR3, DNG, NEF, ARW plus JPG, PNG and WebP files.",
+            "Batch upload RAW, JPG, JPEG, PNG, TIFF, BMP and WebP files.",
         )
         script = script.replace("Ayr\\u0131 RAW Auto ekran\\u0131", "Colora otomatik renk")
         script = script.replace("Separate RAW Auto workspace", "Colora auto color")
@@ -575,16 +661,51 @@ def raw_endpoint() -> Response:
             try:
                 result = convert_raw_photo(photo)
             except Exception as exc:
-                app.logger.exception("RAW conversion failed for %s", photo.name)
+                app.logger.exception("Colora auto color failed for %s", photo.name)
                 return jsonify({"error": f"{photo.name} fotograf duzenleme hatasi: {exc}"}), 500
             name = scene_key(photo.name)
-            archive.writestr(f"RAW_{index:04d}_{name}.jpg", result)
+            archive.writestr(f"COLORA_{index:04d}_{name}.jpg", result)
 
     zip_buffer.seek(0)
     return Response(
         zip_buffer.getvalue(),
         mimetype="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="raw-auto-edits-{len(photos)}-photo.zip"'},
+        headers={"Content-Disposition": f'attachment; filename="colora-auto-color-{len(photos)}-photo.zip"'},
+    )
+
+
+@app.post("/api/video")
+def video_endpoint() -> Response:
+    uploads = request.files.getlist("videos")
+    preset = request.form.get("preset", "natural")
+    if preset not in VIDEO_FILTERS:
+        preset = "natural"
+
+    videos = [PhotoFile(file.filename or f"video_{i}.mp4", file) for i, file in enumerate(uploads)]
+    videos = [video for video in videos if video.storage and video.storage.filename and VIDEO_EXTENSIONS.search(video.name)]
+
+    if not videos:
+        return jsonify({"error": "En az 1 video yukle."}), 400
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED, compresslevel=4) as archive:
+        for index, video in enumerate(sort_photos(videos), start=1):
+            try:
+                result = convert_video_grade(video, preset)
+            except subprocess.TimeoutExpired:
+                app.logger.exception("Colora video grade timed out for %s", video.name)
+                return jsonify({"error": f"{video.name} video isleme zaman asimina ugradi."}), 500
+            except Exception as exc:
+                app.logger.exception("Colora video grade failed for %s", video.name)
+                return jsonify({"error": f"{video.name} video grade hatasi: {exc}"}), 500
+            name = scene_key(video.name)
+            archive.writestr(f"COLORA_VIDEO_{index:04d}_{preset}_{name}.mp4", result)
+
+    zip_buffer.seek(0)
+    return Response(
+        zip_buffer.getvalue(),
+        mimetype="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="colora-video-{preset}-{len(videos)}-file.zip"'},
     )
 
 
